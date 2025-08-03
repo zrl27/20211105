@@ -3708,7 +3708,15 @@ input[type="checkbox"] {
                 </div>
             </div>
 
-            <div id="api-settings-screen" class="screen"><div class="header"><span class="back-btn" onclick="showScreen('home-screen')">‹</span><span>API 设置</span><span style="width: 30px;"></span></div><div class="form-container"><p style="font-size: 14px; color: #666; background-color: #f0f0f0; padding: 10px; border-radius: 8px;">提示: 若要使用“发送图片”功能, 请务必选择支持Vision(视觉)的模型, 如<code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 4px;">gpt-4o</code>或<code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 4px;">gpt-4-vision-preview</code>。</p><div class="form-group"><label for="proxy-url">反代地址 (不需要添加/v1噢~)</label><input type="text" id="proxy-url" placeholder="例如: https://api.openai.com"></div><div class="form-group"><label for="api-key">密钥 (API Key)</label><input type="password" id="api-key" placeholder="sk-..."></div><div class="form-group"><label for="model-select">模型</label><select id="model-select"></select></div><button class="form-button" id="fetch-models-btn">拉取模型</button>
+            <div id="api-settings-screen" class="screen"><div class="header"><span class="back-btn" onclick="showScreen('home-screen')">‹</span><span>API 设置</span><span style="width: 30px;"></span></div><div class="form-group" style="padding: 20px 20px 0 20px;">
+    <label for="api-preset-select">API 预设</label>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <select id="api-preset-select" style="flex-grow: 1;">
+            </select>
+        <button id="manage-api-presets-btn" class="form-button-secondary" style="margin-top: 0; padding: 12px;">管理</button>
+    </div>
+</div>
+<hr style="opacity: 0.2; margin-top: 20px;"><div class="form-container"><p style="font-size: 14px; color: #666; background-color: #f0f0f0; padding: 10px; border-radius: 8px;">提示: 若要使用“发送图片”功能, 请务必选择支持Vision(视觉)的模型, 如<code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 4px;">gpt-4o</code>或<code style="background-color: #e0e0e0; padding: 2px 4px; border-radius: 4px;">gpt-4-vision-preview</code>。</p><div class="form-group"><label for="proxy-url">反代地址 (不需要添加/v1噢~)</label><input type="text" id="proxy-url" placeholder="例如: https://api.openai.com"></div><div class="form-group"><label for="api-key">密钥 (API Key)</label><input type="password" id="api-key" placeholder="sk-..."></div><div class="form-group"><label for="model-select">模型</label><select id="model-select"></select></div><button class="form-button" id="fetch-models-btn">拉取模型</button>
 
 <!-- ▼▼▼ 将这段代码粘贴到 API 设置页面的“保存设置”按钮上方 ▼▼▼ -->
 <hr style="margin:20px 0; opacity:.3">
@@ -12387,5 +12395,43 @@ document.getElementById('playlist-body').addEventListener('click', async (e) => 
         init();
     });
 </script>
+<div id="api-preset-manager-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+        <div class="modal-header">
+            <span>管理API预设</span>
+            <button id="add-new-api-preset-btn" class="action-button">添加</button>
+        </div>
+        <div class="modal-body" id="api-preset-list"></div>
+        <div class="modal-footer">
+            <button class="save" id="close-api-preset-manager-btn" style="width: 100%;">完成</button>
+        </div>
+    </div>
+</div>
+
+<div id="api-preset-editor-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span id="api-preset-editor-title">添加API预设</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="api-preset-name-input">预设名称</label>
+                <input type="text" id="api-preset-name-input" placeholder="例如：我的主力Key">
+            </div>
+            <div class="form-group">
+                <label for="api-preset-url-input">反代地址</label>
+                <input type="text" id="api-preset-url-input" placeholder="https://api.openai.com">
+            </div>
+            <div class="form-group">
+                <label for="api-preset-key-input">密钥 (API Key)</label>
+                <input type="password" id="api-preset-key-input" placeholder="sk-...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="cancel" id="cancel-api-preset-editor-btn">取消</button>
+            <button class="save" id="save-api-preset-btn">保存</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
