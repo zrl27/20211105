@@ -5844,28 +5844,32 @@ async function importBackup(file) {
         }
 
 async function loadAllDataFromDB() {
-    // ▼▼▼ 【核心修改在这里】 ▼▼▼
     const [
-        chatsArr,
-        apiConfig,
-        globalSettings,
-        userStickers,
-        worldBooks,
-        musicLib,
-        personaPresets,
-        qzoneSettings,
-        initialFavorites // 将 initialFavorites 加入到解构赋值中
+        chatsArr, apiConfig, globalSettings, userStickers, worldBooks, 
+        musicLib, personaPresets, qzoneSettings, initialFavorites, apiPresets // <-- 新增
     ] = await Promise.all([
-        db.chats.toArray(),
-        db.apiConfig.get('main'),
-        db.globalSettings.get('main'),
-        db.userStickers.toArray(),
-        db.worldBooks.toArray(),
-        db.musicLibrary.get('main'),
-        db.personaPresets.toArray(),
-        db.qzoneSettings.get('main'),
-        db.favorites.orderBy('timestamp').reverse().toArray() // 确保这一行在 Promise.all 的数组参数内
+        db.chats.toArray(), db.apiConfig.get('main'), db.globalSettings.get('main'),
+        db.userStickers.toArray(), db.worldBooks.toArray(), db.musicLibrary.get('main'),
+        db.personaPresets.toArray(), db.qzoneSettings.get('main'),
+        db.favorites.orderBy('timestamp').reverse().toArray(),
+        db.apiPresets.toArray() // <-- 新增
     ]);
+
+    state.apiPresets = apiPresets || []; // <-- 新增
+    state.globalSettings = globalSettings || { id: 'main', wallpaper: 'linear-gradient(135deg, #89f7fe, #66a6ff)', fontUrl: '', enableBackgroundActivity: false, backgroundActivityInterval: 60, blockCooldownHours: 1 };
+
+    let activeConfig = apiConfig || { id: 'main', proxyUrl: '', apiKey: '', model: '' };
+
+    // 【核心逻辑】如果设置了激活的预设，就用预设覆盖当前配置
+    if (state.globalSettings.activeApiPresetId) {
+        const activePreset = state.apiPresets.find(p => p.id === state.globalSettings.activeApiPresetId);
+        if (activePreset) {
+            activeConfig.proxyUrl = activePreset.proxyUrl;
+            activeConfig.apiKey = activePreset.apiKey;
+            // 注意：模型(model)通常是动态拉取的，所以我们不在切换时直接设定
+        }
+    }
+    state.apiConfig = activeConfig;
     // ▲▲▲ 【修改结束】 ▲▲▲
 
     state.chats = chatsArr.reduce((acc, chat) => {
@@ -6014,11 +6018,25 @@ function parseAiResponse(content) {
 }
 // ▲▲▲ 替换结束 ▲▲▲
 
-        function renderApiSettings() { document.getElementById('proxy-url').value = state.apiConfig.proxyUrl || ''; document.getElementById('api-key').value = state.apiConfig.apiKey || ''; 
-    // ▼▼▼ 新增这行 ▼▼▼
+        function renderApiSettings() {
+    document.getElementById('proxy-url').value = state.apiConfig.proxyUrl || '';
+    document.getElementById('api-key').value = state.apiConfig.apiKey || '';
     document.getElementById('background-activity-switch').checked = state.globalSettings.enableBackgroundActivity || false;
     document.getElementById('background-interval-input').value = state.globalSettings.backgroundActivityInterval || 60;
     document.getElementById('block-cooldown-input').value = state.globalSettings.blockCooldownHours || 1;
+
+    // 【核心新增】填充预设下拉菜单
+    const presetSelect = document.getElementById('api-preset-select');
+    presetSelect.innerHTML = '<option value="">-- 自定义配置 --</option>'; // 默认选项
+    state.apiPresets.forEach(preset => {
+        const option = document.createElement('option');
+        option.value = preset.id;
+        option.textContent = preset.name;
+        if (preset.id === state.globalSettings.activeApiPresetId) {
+            option.selected = true;
+        }
+        presetSelect.appendChild(option);
+    });
 }
         window.renderApiSettingsProxy = renderApiSettings;
 
@@ -10723,7 +10741,28 @@ function updateMusicProgressBar() {
             // ==========================================================
             // --- 各种事件监听器 ---
             // ==========================================================
+            // ▼▼▼ 【全新】API预设功能事件监听器 ▼▼▼
+document.getElementById('manage-api-presets-btn').addEventListener('click', openApiPresetManager);
+document.getElementById('close-api-preset-manager-btn').addEventListener('click', () => {
+    document.getElementById('api-preset-manager-modal').classList.remove('visible');
+});
+document.getElementById('add-new-api-preset-btn').addEventListener('click', () => openApiPresetEditor(null));
+document.getElementById('api-preset-list').addEventListener('click', (e) => {
+    const presetId = parseInt(e.target.dataset.id);
+    if (isNaN(presetId)) return;
 
+    if (e.target.classList.contains('delete-group-btn')) {
+        deleteApiPreset(presetId);
+    } else if (e.target.tagName === 'BUTTON') {
+        openApiPresetEditor(presetId);
+    }
+});
+document.getElementById('cancel-api-preset-editor-btn').addEventListener('click', () => {
+    document.getElementById('api-preset-editor-modal').classList.remove('visible');
+});
+document.getElementById('save-api-preset-btn').addEventListener('click', saveApiPreset);
+document.getElementById('api-preset-select').addEventListener('change', handlePresetSelection);
+// ▲▲▲ 新增结束 ▲▲▲
             document.getElementById('custom-modal-cancel').addEventListener('click', hideCustomModal);
             document.getElementById('custom-modal-overlay').addEventListener('click', (e) => { if (e.target === modalOverlay) hideCustomModal(); });
             document.getElementById('export-data-btn').addEventListener('click', exportBackup);
