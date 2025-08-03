@@ -4830,7 +4830,7 @@ function updateLyricsUI() {
   
         const db = new Dexie('GeminiChatDB');
         // --- 已修正 ---
-        let state = { chats: {}, activeChatId: null, globalSettings: {}, apiConfig: {}, userStickers: [], worldBooks: [], personaPresets: [], qzoneSettings: {}, activeAlbumId: null };
+        let state = { chats: {}, activeChatId: null, globalSettings: {}, apiConfig: {}, apiPresets: [],userStickers: [], worldBooks: [], personaPresets: [], qzoneSettings: {}, activeAlbumId: null };
         // --- 修正结束 ---
         let musicState = { 
     isActive: false, 
@@ -5119,7 +5119,150 @@ db.version(21).stores({
         // ===================================================================
         // 3. 所有功能函数定义
         // ===================================================================
+        // ▼▼▼ 【全新】API预设管理功能函数 ▼▼▼
 
+/**
+ * 打开API预设管理弹窗
+ */
+function openApiPresetManager() {
+    renderApiPresetList();
+    document.getElementById('api-preset-manager-modal').classList.add('visible');
+}
+
+/**
+ * 渲染API预设列表
+ */
+async function renderApiPresetList() {
+    const listEl = document.getElementById('api-preset-list');
+    const presets = await db.apiPresets.toArray();
+    state.apiPresets = presets; // 更新全局状态
+    listEl.innerHTML = '';
+
+    if (presets.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center; color: #8a8a8a; margin-top: 50px;">点击右上角“添加”来创建你的第一个API预设吧！</p>';
+        return;
+    }
+
+    presets.forEach(preset => {
+        const item = document.createElement('div');
+        item.className = 'existing-group-item'; // 复用已有样式
+        item.innerHTML = `
+            <div style="flex-grow: 1;">
+                <span class="group-name">${preset.name}</span>
+                <p style="font-size: 12px; color: #8a8a8a; margin: 4px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${preset.proxyUrl}</p>
+            </div>
+            <div>
+                <button class="form-button-secondary" data-id="${preset.id}" style="margin: 0 10px 0 0; padding: 8px 12px;">编辑</button>
+                <span class="delete-group-btn" data-id="${preset.id}">×</span>
+            </div>
+        `;
+        listEl.appendChild(item);
+    });
+}
+
+let editingApiPresetId = null; // 用于记录正在编辑的预设ID
+
+/**
+ * 打开API预设编辑器（用于新增或修改）
+ * @param {number|null} presetId - 如果是修改则传入ID，新增则为null
+ */
+async function openApiPresetEditor(presetId) {
+    const modal = document.getElementById('api-preset-editor-modal');
+    const title = document.getElementById('api-preset-editor-title');
+    const nameInput = document.getElementById('api-preset-name-input');
+    const urlInput = document.getElementById('api-preset-url-input');
+    const keyInput = document.getElementById('api-preset-key-input');
+
+    editingApiPresetId = presetId;
+
+    if (presetId) {
+        const preset = await db.apiPresets.get(presetId);
+        title.textContent = '编辑API预设';
+        nameInput.value = preset.name;
+        urlInput.value = preset.proxyUrl;
+        keyInput.value = preset.apiKey;
+    } else {
+        title.textContent = '添加API预设';
+        nameInput.value = '';
+        urlInput.value = '';
+        keyInput.value = '';
+    }
+    modal.classList.add('visible');
+}
+
+/**
+ * 保存API预设（新增或修改）
+ */
+async function saveApiPreset() {
+    const name = document.getElementById('api-preset-name-input').value.trim();
+    const proxyUrl = document.getElementById('api-preset-url-input').value.trim();
+    const apiKey = document.getElementById('api-preset-key-input').value.trim();
+
+    if (!name || !proxyUrl || !apiKey) {
+        alert('预设名称、地址和密钥都不能为空！');
+        return;
+    }
+
+    const presetData = { name, proxyUrl, apiKey };
+
+    if (editingApiPresetId) {
+        await db.apiPresets.update(editingApiPresetId, presetData);
+    } else {
+        await db.apiPresets.add(presetData);
+    }
+
+    await renderApiPresetList(); // 重新渲染列表
+    await renderApiSettings();   // 重新渲染API设置页面的下拉菜单
+    document.getElementById('api-preset-editor-modal').classList.remove('visible');
+}
+
+/**
+ * 删除一个API预设
+ * @param {number} presetId - 要删除的预设ID
+ */
+async function deleteApiPreset(presetId) {
+    const confirmed = await showCustomConfirm('确认删除', '确定要删除这个API预设吗？', { confirmButtonClass: 'btn-danger' });
+    if (confirmed) {
+        await db.apiPresets.delete(presetId);
+
+        // 如果删除的是当前激活的预设，则清除激活状态
+        if (state.globalSettings.activeApiPresetId === presetId) {
+            state.globalSettings.activeApiPresetId = null;
+            await db.globalSettings.put(state.globalSettings);
+        }
+
+        await renderApiPresetList();
+        await renderApiSettings();
+    }
+}
+
+/**
+ * 当用户从下拉菜单选择一个预设时
+ * @param {Event} e - a change event from the select element
+ */
+async function handlePresetSelection(e) {
+    const presetId = parseInt(e.target.value);
+    if (isNaN(presetId)) {
+        // 用户可能选择了“自定义”或其他非预设选项
+        state.globalSettings.activeApiPresetId = null;
+    } else {
+        const preset = state.apiPresets.find(p => p.id === presetId);
+        if (preset) {
+            state.apiConfig.proxyUrl = preset.proxyUrl;
+            state.apiConfig.apiKey = preset.apiKey;
+            state.apiConfig.model = ''; // 切换预设后清空模型选择
+            state.globalSettings.activeApiPresetId = preset.id;
+
+            // 自动保存一次，这样下次打开就是这个预设了
+            await db.apiConfig.put(state.apiConfig);
+        }
+    }
+    await db.globalSettings.put(state.globalSettings);
+    // 重新渲染整个API设置页面以更新所有输入框
+    renderApiSettings();
+}
+
+// ▲▲▲ 新增结束 ▲▲▲
         function showScreen(screenId) {
             if (screenId === 'chat-list-screen') {
                 window.renderChatListProxy(); 
