@@ -3652,7 +3652,16 @@ input[type="checkbox"] {
 #qzone-screen .post-footer {
     border-top-color: #333333;
       }
-      
+/* ▼▼▼ API 预设列表样式最终修正 ▼▼▼ */
+.existing-group-item {
+    align-items: flex-start !important; /* 强制顶部对齐，加个保险 */
+}
+.api-preset-actions {
+    flex-shrink: 0; /* 防止按钮组合被意外压缩 */
+    display: flex;
+    align-items: center; /* 让“编辑”和“X”在水平线上对齐 */
+}
+/* ▲▲▲ 修正结束 ▲▲▲ */      
     </style>
 </head>
 <body>
@@ -5151,7 +5160,7 @@ async function renderApiPresetList() {
                 <span class="group-name">${preset.name}</span>
                 <p style="font-size: 12px; color: #8a8a8a; margin: 4px 0 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${preset.proxyUrl}</p>
             </div>
-            <div>
+            <div class="api-preset-actions">
                 <button class="form-button-secondary" data-id="${preset.id}" style="margin: 0 10px 0 0; padding: 8px 12px;">编辑</button>
                 <span class="delete-group-btn" data-id="${preset.id}">×</span>
             </div>
